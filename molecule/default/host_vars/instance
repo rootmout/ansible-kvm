@@ -1,0 +1,44 @@
+---
+kvm_config: true
+kvm_config_virtual_networks: true
+kvm_enable_libvirtd_syslog: true
+kvm_manage_vms: true
+kvm_disable_apparmor: false
+kvm_vms:
+  - name: test_vm
+    autostart: true
+    # Define boot devices in order of preference
+    boot_devices:
+      - hd
+    graphics: false
+    # Define disks in MB
+    disks:
+        # ide, scsi, virtio, xen, usb, sata or sd
+      - disk_driver: sata
+        name: compute-2-system
+        size: 36864
+    # Define a specific host where the VM should reside..Match inventory_hostname
+    # host: kvm01
+    # Define memory in MB
+    memory: 512
+    network_interfaces:
+      - source: default
+        network_driver: virtio
+        portgroup: vlan-102
+        type: network
+    state: running
+    vcpu: 1
+    cloudinit:
+      enabled: true
+      meta-data:
+        instance-id: test_vm #TODO support default value to vm name
+        local-hostname: test_vm
+      user-data:
+        users:
+          - name: sumit
+            ssh_authorized_keys:
+              - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICvso1QjsOLrWyVoqkqQjre0TD6LE9djVWTCvkUDjgoe
+            sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+            groups: sudo
+            shell: /bin/bash
+

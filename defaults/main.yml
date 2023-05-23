@@ -66,6 +66,9 @@ kvm_images_format_type: qcow2
 # Defines the path to store VM images
 kvm_images_path: /var/lib/libvirt/images
 
+# Define the path of cloudinit images
+kvm_cloudinit_path: /var/lib/libvirt/cloudinit
+
 # This allows libvirtd to detect broken client connections or even
 # dead clients.  A keepalive message is sent to a client after
 # keepalive_interval seconds of inactivity to check if the client is

@@ -1,4 +1,11 @@
 ---
+
+- name: config_vms | Debug VM template
+  debug:
+    msg: "{{ lookup('template', 'vm-template.xml.j2') }}"
+  when: item['host'] is not defined
+  loop: "{{ kvm_vms }}"
+
 - name: config_vms | Defining VM(s)
   become: true
   virt:

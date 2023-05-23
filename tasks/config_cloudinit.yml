@@ -1,0 +1,43 @@
+---
+- name: config_cloudinit | ensure directory exist
+  become: true
+  file:
+    mode: u=rwx,g=rx,o=rx
+    path: "{{ kvm_cloudinit_path }}"
+    state: directory
+
+- name: Create temporary build directory
+  tempfile:
+    state: directory
+    suffix: build
+  register: temp_folder
+
+- name: create subfolder
+  become: true
+  file:
+    mode: u=rwx,g=rwx,o=rwx #TODO
+    path: "{{ temp_folder.path }}/{{ item['name'] }}"
+    state: directory
+  loop: "{{ kvm_vms }}"
+
+- name: Create file
+  copy:
+    content: "{{ item['cloudinit']['meta-data'] }}"
+    dest: "{{ temp_folder.path }}/{{ item['name'] }}/meta-data"
+  loop: "{{ kvm_vms }}"
+
+- name: Create file
+  copy:
+    content: "{{ item['cloudinit']['user-data'] }}"
+    dest: "{{ temp_folder.path }}/{{ item['name'] }}/user-data"
+  loop: "{{ kvm_vms }}"
+
+- name: config_cloudinit | create ISO
+  become: true
+  community.general.iso_create:
+    src_files:
+      - "{{ temp_folder.path }}/{{ item['name'] }}/meta-data"
+      - "{{ temp_folder.path }}/{{ item['name'] }}/user-data"
+    dest_iso: "{{ kvm_cloudinit_path }}/{{ item['name'] }}.iso"
+    interchange_level: 4
+  loop: "{{ kvm_vms }}"
