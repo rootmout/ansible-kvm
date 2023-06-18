@@ -40,18 +40,15 @@ kvm_vms:
     cloudinit:
       enabled: true
       meta-data:
-        instance-id: test_vm #TODO support default value to vm name
+        instance-id: test_vm # TODO support default value to vm name
         local-hostname: test_vm
       user-data:
-        ssh_pwauth: True
-        chpasswd:
-          list: |
-            rootmout:rootmout
         users:
-          - name: sumit
-            ssh_authorized_keys:
-              - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICvso1QjsOLrWyVoqkqQjre0TD6LE9djVWTCvkUDjgoe
+          - default
+          - name: molecule
             sudo: ["ALL=(ALL) NOPASSWD:ALL"]
             groups: sudo
             shell: /bin/bash
+            lock_passwd: false
+            passwd: $6$R4ooTSVU47lnpsjL$Lai92qWT42Yp4yYGQKJ1E5hKOD4hl8qMfACNuojEJ3lS56bpRvxllo8yQBF0EL9CmraHNMe12Ol5xxqfGS5p7/ # molecule (for test only)
 

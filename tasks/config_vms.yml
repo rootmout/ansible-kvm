@@ -1,24 +1,42 @@
 ---
+- name: show templating results
+  ansible.builtin.debug:
+    msg: "{{ lookup('template', 'vm-template.xml.j2') }}"
+  when: item['host'] is not defined or inventory_hostname == item['host']
+  loop: "{{ kvm_vms }}"
+
 - name: config_vms | Defining VM(s)
   become: true
   virt:
     name: "{{ item['name'] }}"
     command: define
     xml: "{{ lookup('template', 'vm-template.xml.j2') }}"
-  when: > 
-    item['host'] is not defined or
-    inventory_hostname == item['host'])
+  when: item['host'] is not defined or inventory_hostname == item['host']
   loop: "{{ kvm_vms }}"
 
-- name: config_vms | Creating VM Disk(s)
+- name: config_vms | Download backing image(s)
+  become: true
+  ansible.builtin.uri:
+    url: "{{ item[1]['backing_file'] }}"
+    dest: "{{ kvm_images_path }}/"
+    creates: "{{ kvm_images_path }}/{{ item[1]['backing_file'] | urlsplit('path') | basename }}"
+  when: >
+    item[1]['backing_file'] is defined and
+    (item[0]['host'] is not defined or inventory_hostname == item[0]['host'])
+  with_subelements:
+    - "{{ kvm_vms }}"
+    - disks
+
+- name: config_vms | Create VM Disk(s)
   become: true
   qemu_img:
+    backing_file: "{{ item[1]['backing_file'] is defined | ternary(kvm_images_path ~ '/' ~ item[1]['backing_file'] | urlsplit('path') | basename, omit) }}"
     dest: "{{ kvm_images_path }}/{{ item[1]['name'] }}.{{ kvm_images_format_type }}"
     size: "{{ item[1]['size'] }}"
     format: "{{ kvm_images_format_type }}"
-  when: > 
-    'host' not in item[0] or 
-    inventory_hostname == item[0]['host']
+  when: >
+    item[1]['path'] is not defined and
+    (item[0]['host'] is not defined or inventory_hostname == item[0]['host'])
   with_subelements:
     - "{{ kvm_vms }}"
     - disks
@@ -28,20 +46,7 @@
   virt:
     name: "{{ item['name'] }}"
     state: "{{ item['state'] }}"
-  when: >
-    item['host'] is not defined or 
-    inventory_hostname == item['host']
-  loop: "{{ kvm_vms }}"
-
-- name: config_vms | Setting autostart status
-  become: true
-  virt:
-    name: "{{ item['name'] }}"
-    autostart: "{{ item['autostart'] | default(omit) }}"
-    command: info
-  when:
-    - item['host'] is not defined
-    - ansible_version.full is version('2.5', '>=')
+  when: item[0]['host'] is not defined or inventory_hostname == item[0]['host']
   loop: "{{ kvm_vms }}"
 
 - name: config_vms | Setting autostart status
@@ -52,6 +57,5 @@
     command: info
   when: >
     ansible_version.full is version('2.5', '>=') and
-    item['host'] is not defined or
-    inventory_hostname == item['host']
+    (item['host'] is not defined or inventory_hostname == item['host'])
   loop: "{{ kvm_vms }}"

@@ -1,0 +1,61 @@
+---
+
+# Generate a cloudinit iso file locally before transferring it to the host.
+
+- name: config_cloudinit | Ensure directory on hypervisor exist
+  become: true
+  file:
+    mode: u=rwx,g=rx,o=rx
+    path: "{{ kvm_cloudinit_path }}"
+    state: directory
+
+- name: config_cloudinit | Create temporary build directory
+  delegate_to: 127.0.0.1
+  tempfile:
+    state: directory
+    suffix: .cloudinitbuild
+  register: temp_folder
+
+# A sub-folder is created for each VM as the meta-data and user-data files cannot be named in a different way.
+- name: config_cloudinit | Create per-VM subfolder
+  delegate_to: 127.0.0.1
+  file:
+    mode: u=rwx,g=rwx,o=rwx #TODO
+    path: "{{ temp_folder.path }}/{{ item['name'] }}"
+    state: directory
+  loop: "{{ kvm_vms }}"
+
+- name: config_cloudinit | Create meta-data file
+  delegate_to: 127.0.0.1
+  copy:
+    content: "{{ item['cloudinit']['meta-data'] }}"
+    dest: "{{ temp_folder.path }}/{{ item['name'] }}/meta-data"
+  loop: "{{ kvm_vms }}"
+
+- name: config_cloudinit | Create user-data file
+  delegate_to: 127.0.0.1
+  copy:
+    content: "{{ '#cloud-config\n' ~ item['cloudinit']['user-data'] }}"
+    dest: "{{ temp_folder.path }}/{{ item['name'] }}/user-data"
+  loop: "{{ kvm_vms }}"
+
+- name: config_cloudinit | Create ISO
+  delegate_to: 127.0.0.1
+  community.general.iso_create:
+    src_files:
+      - "{{ temp_folder.path }}/{{ item['name'] }}/meta-data"
+      - "{{ temp_folder.path }}/{{ item['name'] }}/user-data"
+    dest_iso: "{{ temp_folder.path }}/{{ item['name'] }}/cloudinit.iso"
+    vol_ident: cidata
+    interchange_level: 4
+  loop: "{{ kvm_vms }}"
+
+- name: config_cloudinit | Transfert files
+  become: true
+  ansible.builtin.copy:
+    src: "{{ temp_folder.path }}/{{ item['name'] }}/cloudinit.iso"
+    dest: "{{ kvm_cloudinit_path }}/{{ item['name'] }}.iso"
+    # owner: foo
+    # group: foo
+    # mode: '0644'
+  loop: "{{ kvm_vms }}"

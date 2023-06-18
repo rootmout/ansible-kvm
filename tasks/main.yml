@@ -9,6 +9,15 @@
 - include: "install_packages_{{ ansible_os_family | lower }}.yml"
   when: ansible_os_family in ["Debian", "RedHat"]
 
+- include: apparmor.yml
+  when:
+    - kvm_disable_apparmor
+    - ansible_os_family == "Debian"
+
+- include: config_cloudinit.yml
+  tags:
+    - config_cloudinit
+
 - include: config_kvm.yml
   tags:
     - config_kvm
@@ -53,7 +62,4 @@
 - include: system_tweaks.yml
   when: kvm_enable_system_tweaks
 
-- include: apparmor.yml
-  when:
-    - kvm_disable_apparmor
-    - ansible_os_family == "Debian"
+

@@ -67,6 +67,8 @@ def main():
 
     module = AnsibleModule(
         argument_spec = dict(
+            backing_file = dict(type='str'),
+            backing_file_format = dict(type='str', default='qcow2'),
             dest = dict(type='str', required=True),
             opt = dict(type='str'),
             format = dict(type='str', default='qcow2'),
@@ -82,6 +84,8 @@ def main():
     dest = module.params['dest']
     img_format = module.params['format']
     opt = module.params['opt']
+    backing_file = module.params['backing_file']
+    backing_file_format = module.params['backing_file_format']
 
     if module.params['state'] == 'present':
         if not module.params['size']:
@@ -89,12 +93,16 @@ def main():
         size = module.params['size'] * 1024 * 1024
 
         if not os.path.exists(dest):
+            cmd = '%s create -f %s "%s" %s'%(qemu_img, img_format, dest, size)
+            if opt:
+                cmd += ' -o %s'%(opt)
+            if backing_file:
+                if not os.path.exists(backing_file):
+                    module.fail_json(msg="backing file %s doesn't exist" % (backing_file))
+                cmd += ' -b %s -F %s'%(backing_file, backing_file_format)
             if not module.check_mode:
-                if not opt:
-                    module.run_command('%s create -f %s "%s" %s'%(qemu_img, img_format, dest, size), check_rc=True)
-                else:
-                    module.run_command('%s create -f %s -o %s "%s" %s'%(qemu_img, img_format, opt, dest, size), check_rc=True)
-            changed = True
+              module.run_command(cmd, check_rc=True)
+            changed = True      
         else:
             rc, stdout, _ = module.run_command('%s info "%s"'%(qemu_img, dest), check_rc=True)
             current_size = None
