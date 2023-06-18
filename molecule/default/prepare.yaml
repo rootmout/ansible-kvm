@@ -1,0 +1,18 @@
+---
+
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Create a disk image 
+      command: dd if=/dev/zero of=/tmp/blockdevice.img bs=100M count=30
+
+    - name: Create disk label
+      command: /sbin/parted /tmp/blockdevice.img mklabel msdos
+
+    - name: Find loopback
+      shell: losetup -f 
+      register: loopback
+
+    - name: Loopback attach
+      command: losetup {{loopback.stdout}} /tmp/blockdevice.img
+      become: true
