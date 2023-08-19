@@ -66,8 +66,12 @@ kvm_images_format_type: qcow2
 # Defines the path to store VM images
 kvm_images_path: /var/lib/libvirt/images
 
-# Define the path of cloudinit images
+# Define the path where reside the cloudinit iso files
 kvm_cloudinit_path: /var/lib/libvirt/cloudinit
+
+# Define the path where the iso images will be mounted during their creation
+# Warning: this path will be created and DELETED during the execution of the role.
+kvm_cloudinit_build_mount_path: /mnt/cloudinit_build
 
 # This allows libvirtd to detect broken client connections or even
 # dead clients.  A keepalive message is sent to a client after

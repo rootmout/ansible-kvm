@@ -1,11 +1,13 @@
 ---
 - name: cloudinit | Ensure directory on hypervisor exist
+  become: true
   file:
     mode: u=rwx,g=rx,o=rx
     path: "{{ kvm_cloudinit_path }}"
     state: directory
 
 - name: cloudinit | Create per-vm seed directory
+  become: true
   file:
     mode: u=rwx,g=rx,o=rx
     path: "{{ kvm_cloudinit_path }}/{{ item.host }}"
@@ -13,6 +15,7 @@
   loop: "{{ kvm_vms | list_cloudinit_files }}"
 
 - name: cloudinit | Create files in seed directory
+  become: true
   copy:
     content: "{{ item.content }}"
     dest: "{{ kvm_cloudinit_path }}/{{ item.host }}/{{ item.file }}"
@@ -38,6 +41,7 @@
     item['cloudinit']['cache'] == false
 
 - name: cloudinit | create iso files
+  become: true
   community.general.filesize:
     path: "{{ kvm_cloudinit_path }}/{{ item }}.iso"
     force: true
@@ -45,10 +49,11 @@
   loop: "{{ cloudinit_updated_hosts }}"
 
 - name: cloudinit | set fs and label on iso files
+  become: true
   community.general.filesystem:
     fstype: vfat
     dev: "{{ kvm_cloudinit_path }}/{{ item }}.iso"
-    opts: -n cidata
+    opts: -n cidata -S 2048
   loop: "{{ cloudinit_updated_hosts }}"
 
 - name: cloudinit | create mount directory
@@ -74,6 +79,7 @@
   copy:
     src: "{{ kvm_cloudinit_path }}/{{ item }}/"
     dest: "{{ kvm_cloudinit_build_mount_path }}/{{ item }}_iso"
+    remote_src: true
   loop: "{{ cloudinit_updated_hosts }}"
 
 - name: cloudinit | unmount iso files

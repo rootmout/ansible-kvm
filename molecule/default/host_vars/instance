@@ -18,7 +18,7 @@ kvm_vms:
         name: system
         type: file
         size: 5120
-        backing_file: https://cloud-images.ubuntu.com/mantic/20230612/mantic-server-cloudimg-amd64.img
+        backing_file: https://cloud-images.ubuntu.com/minimal/releases/jammy/release/ubuntu-22.04-minimal-cloudimg-amd64.img
         override: true
 
       - disk_driver: virtio
@@ -39,16 +39,18 @@ kvm_vms:
     vcpu: 1
     cloudinit:
       enabled: true
-      meta-data:
-        instance-id: test_vm # TODO support default value to vm name
-        local-hostname: test_vm
-      user-data:
-        users:
-          - default
-          - name: molecule
-            sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-            groups: sudo
-            shell: /bin/bash
-            lock_passwd: false
-            passwd: $6$R4ooTSVU47lnpsjL$Lai92qWT42Yp4yYGQKJ1E5hKOD4hl8qMfACNuojEJ3lS56bpRvxllo8yQBF0EL9CmraHNMe12Ol5xxqfGS5p7/ # molecule (for test only)
+      files:
+        meta-data: |
+          instance-id: test_vm
+          local-hostname: test_vm
+        user-data: |
+          #cloud-config
+          users:
+            - default
+            - name: molecule
+              sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+              groups: sudo
+              shell: /bin/bash
+              lock_passwd: false
+              passwd: $6$R4ooTSVU47lnpsjL$Lai92qWT42Yp4yYGQKJ1E5hKOD4hl8qMfACNuojEJ3lS56bpRvxllo8yQBF0EL9CmraHNMe12Ol5xxqfGS5p7/ # molecule (for test only)
 
