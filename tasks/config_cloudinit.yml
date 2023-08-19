@@ -1,61 +1,92 @@
 ---
-
-# Generate a cloudinit iso file locally before transferring it to the host.
-
-- name: config_cloudinit | Ensure directory on hypervisor exist
-  become: true
+- name: cloudinit | Ensure directory on hypervisor exist
   file:
     mode: u=rwx,g=rx,o=rx
     path: "{{ kvm_cloudinit_path }}"
     state: directory
 
-- name: config_cloudinit | Create temporary build directory
-  delegate_to: 127.0.0.1
-  tempfile:
-    state: directory
-    suffix: .cloudinitbuild
-  register: temp_folder
-
-# A sub-folder is created for each VM as the meta-data and user-data files cannot be named in a different way.
-- name: config_cloudinit | Create per-VM subfolder
-  delegate_to: 127.0.0.1
+- name: cloudinit | Create per-vm seed directory
   file:
-    mode: u=rwx,g=rwx,o=rwx #TODO
-    path: "{{ temp_folder.path }}/{{ item['name'] }}"
+    mode: u=rwx,g=rx,o=rx
+    path: "{{ kvm_cloudinit_path }}/{{ item.host }}"
     state: directory
-  loop: "{{ kvm_vms }}"
+  loop: "{{ kvm_vms | list_cloudinit_files }}"
 
-- name: config_cloudinit | Create meta-data file
-  delegate_to: 127.0.0.1
+- name: cloudinit | Create files in seed directory
   copy:
-    content: "{{ item['cloudinit']['meta-data'] }}"
-    dest: "{{ temp_folder.path }}/{{ item['name'] }}/meta-data"
-  loop: "{{ kvm_vms }}"
+    content: "{{ item.content }}"
+    dest: "{{ kvm_cloudinit_path }}/{{ item.host }}/{{ item.file }}"
+  loop: "{{ kvm_vms | list_cloudinit_files }}"
+  register: cloudinit_files
 
-- name: config_cloudinit | Create user-data file
-  delegate_to: 127.0.0.1
-  copy:
-    content: "{{ '#cloud-config\n' ~ item['cloudinit']['user-data'] }}"
-    dest: "{{ temp_folder.path }}/{{ item['name'] }}/user-data"
-  loop: "{{ kvm_vms }}"
+- name: cloudinit | declare cloudinit_updated_hosts
+  set_fact:
+    cloudinit_updated_hosts: []
 
-- name: config_cloudinit | Create ISO
-  delegate_to: 127.0.0.1
-  community.general.iso_create:
-    src_files:
-      - "{{ temp_folder.path }}/{{ item['name'] }}/meta-data"
-      - "{{ temp_folder.path }}/{{ item['name'] }}/user-data"
-    dest_iso: "{{ temp_folder.path }}/{{ item['name'] }}/cloudinit.iso"
-    vol_ident: cidata
-    interchange_level: 4
-  loop: "{{ kvm_vms }}"
+- name: cloudinit | list host with an updated seed folder
+  set_fact:
+    cloudinit_updated_hosts: "{{ cloudinit_updated_hosts | union([item.item.host]) }}"
+  loop: "{{ cloudinit_files.results }}"
+  when: item.changed
 
-- name: config_cloudinit | Transfert files
+- name: cloudinit | list host with cloudinit cache disabled
+  set_fact:
+    cloudinit_updated_hosts: "{{ cloudinit_updated_hosts | union([item.name]) }}"
+  loop: "{{ kvm_vms }}"
+  when: >
+    item['cloudinit']['cache'] is defined and
+    item['cloudinit']['cache'] == false
+
+- name: cloudinit | create iso files
+  community.general.filesize:
+    path: "{{ kvm_cloudinit_path }}/{{ item }}.iso"
+    force: true
+    size: 2M
+  loop: "{{ cloudinit_updated_hosts }}"
+
+- name: cloudinit | set fs and label on iso files
+  community.general.filesystem:
+    fstype: vfat
+    dev: "{{ kvm_cloudinit_path }}/{{ item }}.iso"
+    opts: -n cidata
+  loop: "{{ cloudinit_updated_hosts }}"
+
+- name: cloudinit | create mount directory
   become: true
-  ansible.builtin.copy:
-    src: "{{ temp_folder.path }}/{{ item['name'] }}/cloudinit.iso"
-    dest: "{{ kvm_cloudinit_path }}/{{ item['name'] }}.iso"
-    # owner: foo
-    # group: foo
-    # mode: '0644'
-  loop: "{{ kvm_vms }}"
+  file:
+    mode: u=rwx,g=rx,o=rx
+    path: "{{ kvm_cloudinit_build_mount_path }}/{{ item }}_iso"
+    state: directory
+  loop: "{{ cloudinit_updated_hosts }}"
+
+- name: cloudinit | mount iso files
+  become: true
+  ansible.posix.mount:
+    path: "{{ kvm_cloudinit_build_mount_path }}/{{ item }}_iso"
+    src: "{{ kvm_cloudinit_path }}/{{ item }}.iso"
+    fstype: vfat
+    state: ephemeral
+    opts: rw
+  loop: "{{ cloudinit_updated_hosts }}"
+
+- name: cloudinit | copy seed files into iso
+  become: true
+  copy:
+    src: "{{ kvm_cloudinit_path }}/{{ item }}/"
+    dest: "{{ kvm_cloudinit_build_mount_path }}/{{ item }}_iso"
+  loop: "{{ cloudinit_updated_hosts }}"
+
+- name: cloudinit | unmount iso files
+  become: true
+  ansible.posix.mount:
+    path: "{{ kvm_cloudinit_build_mount_path }}/{{ item }}_iso"
+    state: unmounted
+  loop: "{{ cloudinit_updated_hosts }}"
+
+- name: cloudinit | remove mount directory
+  become: true
+  file:
+    mode: u=rwx,g=rx,o=rx
+    path: "{{ kvm_cloudinit_build_mount_path }}"
+    state: absent
+

@@ -95,11 +95,14 @@ def main():
         if not os.path.exists(dest):
             cmd = '%s create -f %s "%s" %s'%(qemu_img, img_format, dest, size)
             if opt:
-                cmd += ' -o %s'%(opt)
+                cmd += ' -o %s' % opt
             if backing_file:
                 if not os.path.exists(backing_file):
                     module.fail_json(msg="backing file %s doesn't exist" % (backing_file))
-                cmd += ' -b %s -F %s'%(backing_file, backing_file_format)
+                cmd += ' -b %s' % backing_file
+                # If the format is not specified, qemu-img will try to find it by itself.
+                if backing_file_format:
+                    cmd += ' -F %s' % backing_file_format
             if not module.check_mode:
               module.run_command(cmd, check_rc=True)
             changed = True      
