@@ -41,7 +41,7 @@
     <disk type='{{ hd.type | default('file') }}' device='disk'>
       <driver name='qemu' type='{{ 'raw' if hd.type == 'block' else kvm_images_format_type }}' cache='{{ kvm_images_cache_mode }}'/>
 {%   if hd.type is not defined or hd.type == 'file' %}
-      <source file='{{ hd.path | default(kvm_images_path ~ '/' ~ hd['name'] ~ '.' ~ kvm_images_format_type) }}'/>
+      <source file='{{ hd.path | default(kvm_images_path ~ '/' ~ item['name'] ~ '_' ~ hd['name'] ~ '.' ~ kvm_images_format_type) }}'/>
 {%   elif hd.type == 'block' %}
       <source dev='{{ hd.path }}'/>
 {%   endif %}
@@ -68,5 +68,14 @@
     <console type='pty'>
       <target type='serial' port='0'/>
     </console>
+{% for hostdev in item['hostdevs'] | default([], true) %}
+    <hostdev mode="subsystem" type="{{ hostdev['type'] }}" {% if hostdev['type'] == 'pci' %}managed="{{ hostdev['managed'] | default("yes", true) }}"{% endif %} {% if hostdev['type'] == 'scsi_host' or hostdev['type'] == 'mdev' %}model="{{ hostdev['model'] }}"{% endif %}>
+        {% if hostdev['alias'] is defined %}<alias name="{{ hostdev['alias'] }}"/>{% endif %}
+        <source>
+          <address domain="{{ hostdev['source']['domain'] }}" bus="{{ hostdev['source']['bus'] }}" slot="{{ hostdev['source']['slot'] }}" function="{{ hostdev['source']['function'] }}"/>
+        </source>
+        <address type="{{ hostdev['type'] }}" domain="{{ hostdev['destination']['domain'] }}" bus="{{ hostdev['destination']['bus'] }}" slot="{{ hostdev['destination']['slot'] }}" function="{{ hostdev['destination']['function'] }}"/>
+    </hostdev>
+{% endfor %}
   </devices>
 </domain>

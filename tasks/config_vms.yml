@@ -31,7 +31,7 @@
   become: true
   qemu_img:
     backing_file: "{{ item[1]['backing_file'] is defined | ternary(kvm_images_path ~ '/' ~ item[1]['backing_file'] | urlsplit('path') | basename, omit) }}"
-    dest: "{{ kvm_images_path }}/{{ item[1]['name'] }}.{{ kvm_images_format_type }}"
+    dest: "{{ kvm_images_path }}/{{ item[0]['name'] ~ '_' ~ item[1]['name'] }}.{{ kvm_images_format_type }}"
     size: "{{ item[1]['size'] }}"
     format: "{{ kvm_images_format_type }}"
   when: >
