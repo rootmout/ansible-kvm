@@ -1,0 +1,4 @@
+---
+- name: ansible.posix
+  src: git+https://github.com/ansible-collections/ansible.posix
+  version: 1.5.4
