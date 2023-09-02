@@ -60,7 +60,7 @@ notes:
 '''
 
 import os
-
+import subprocess
 from ansible.module_utils.basic import AnsibleModule
 
 def main():
@@ -106,6 +106,8 @@ def main():
             if not module.check_mode:
               module.run_command(cmd, check_rc=True)
             changed = True      
+        elif is_file_used_by_process(dest):
+            module.exit_json(skipped=True, msg="another process is actually using the image %s" % (dest))
         else:
             rc, stdout, _ = module.run_command('%s info "%s"'%(qemu_img, dest), check_rc=True)
             current_size = None
@@ -127,6 +129,21 @@ def main():
             changed = True
 
     module.exit_json(changed=changed)
+
+
+def is_file_used_by_process(file_path):
+    try:
+        cmd = ["lsof", file_path]
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf-8")
+        if file_path in output:
+            return True
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    return False
 
 if __name__ == '__main__':
     main()
