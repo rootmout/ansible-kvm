@@ -1,5 +1,8 @@
 <domain type='{{ kvm_domain_type }}'>
   <name>{{ item.name }}</name>
+{% if item.uuid is defined %}
+  <uuid>{{ item.uuid }}</uuid>
+{% endif %}
   <memory unit='MB'>{{ item.memory }}</memory>
   <vcpu>{{ item.vcpu }}</vcpu>
   <os>
