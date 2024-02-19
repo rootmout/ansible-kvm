@@ -48,6 +48,9 @@
 {%   elif hd.type == 'block' %}
       <source dev='{{ hd.path }}'/>
 {%   endif %}
+{%   if hd.serial is defined %}
+      <serial>{{ hd.serial }}</serial>
+{%   endif %}
 {%   if hd.disk_driver|lower == 'virtio' %}
       <target dev='vd{{ "abcdefghijklmnopqrstuvwxyz"[loop.index0] }}' bus='{{ hd['disk_driver'] }}'/>
 {%   elif hd.disk_driver|lower == 'sata' or hd['disk_driver']|lower == 'scsi' or hd['disk_driver']|lower == 'sd' %}
